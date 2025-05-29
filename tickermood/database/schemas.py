@@ -7,10 +7,7 @@ from sqlmodel import SQLModel, Field
 from tickermood.subject import Subject
 
 
-class BaseTable(SQLModel):
-    ...
-
-
+class BaseTable(SQLModel): ...
 
 
 class SubjectORM(BaseTable, Subject, table=True):  # type: ignore
@@ -18,6 +15,4 @@ class SubjectORM(BaseTable, Subject, table=True):  # type: ignore
     date: datetime = Field(primary_key=True, index=True)
     symbol: str = Field(primary_key=True, index=True)
     news: Optional[List[Any]] = Field(default=None, sa_column=Column(JSON))
-    consensus: Optional[List[Any]] = Field(default=None, sa_column=Column(JSON))
-
-
+    price_target: Optional[List[Any]] = Field(default=None, sa_column=Column(JSON))

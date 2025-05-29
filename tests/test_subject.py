@@ -4,7 +4,7 @@ from pathlib import Path
 from tickermood.subject import Subject
 
 
-def test_subject() ->None:
+def test_subject() -> None:
     with tempfile.NamedTemporaryFile() as f:
         subject = Subject(symbol="AAPL", name="Apple Inc.", exchange="NASDAQ")
         subject.save(Path(f.name))

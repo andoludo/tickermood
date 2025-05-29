@@ -1,0 +1,99 @@
+import json
+from typing import Optional, Union, List
+
+from langchain_core.language_models import BaseChatModel
+from langchain_core.messages import ChatMessage, AIMessage
+from langchain_core.outputs import ChatResult, Generation, ChatGeneration
+from langchain_core.runnables import Runnable
+
+from tickermood.agent import summarize_agent
+from tickermood.articles import News, PriceTargetNews
+from tickermood.subject import LLMSubject
+
+
+class FakeLLM(BaseChatModel):
+    def __init__(self, model_name: str, temperature: float = 0.0):
+        super().__init__()
+
+    def _generate(
+        self, messages: List[ChatMessage], stop: Optional[List[str]] = None
+    ) -> ChatResult:
+        ai_message = AIMessage(content="This is a summary")
+
+        return ChatResult(generations=[ChatGeneration(message=ai_message)])
+
+    @property
+    def _llm_type(self) -> str:
+        return "fake-llm"
+
+    def reset(self):
+        self._counter = 0
+
+    def bind_tools(self, tools, tool_choice=None, **kwargs):
+        class SimpleRunnable(Runnable):
+            def invoke(self, input, config=None):
+                response = {
+                    "tasks": [
+                        {
+                            "high_price_target": 100.0,
+                            "low_price_target": 200,
+                        }
+                    ]
+                }
+
+                return AIMessage(
+                    content="",
+                    additional_kwargs={
+                        "tool_calls": [
+                            {
+                                "id": "tool1",
+                                "type": "function",
+                                "function": {
+                                    "name": (
+                                        tools[0].__name__
+                                        if hasattr(tools[0], "__name__")
+                                        else "mock_tool"
+                                    ),
+                                    "arguments": json.dumps(response),
+                                },
+                            }
+                        ]
+                    },
+                )
+
+        return SimpleRunnable()
+
+
+def test_summarize_agent():
+    subject = LLMSubject(
+        symbol="fake",
+        name="Fake Subject",
+        exchange="FAKE",
+        model_type=FakeLLM,
+        model_name="Fake LLM",
+        price_target_news=[
+            PriceTargetNews(
+                source="Investing",
+                content="This is a test article.",
+                url="http://example.com/test1",
+                title="Test Article",
+            )
+        ],
+        news=[
+            News(
+                source="Investing",
+                content="This is a test article.",
+                url="http://example.com/test1",
+                title="Test Article",
+            ),
+            News(
+                source="Investing",
+                content="This is a test article.",
+                url="http://example.com/test2",
+                title="Test Article",
+            ),
+        ],
+    )
+    agent = summarize_agent()
+    result = agent.invoke(subject)
+    assert result

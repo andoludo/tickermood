@@ -8,6 +8,7 @@ from sqlmodel import Session, select
 
 
 from tickermood.database.scripts.upgrade import upgrade
+
 if TYPE_CHECKING:
     from tickermood.subject import Subject
 
@@ -26,9 +27,9 @@ class TickerMoodDb(BaseModel):
     def model_post_init(self, __context: Any) -> None:
         self._engine  # noqa: B018
 
-
     def write(self, subject: "Subject") -> None:
         from tickermood.database.schemas import SubjectORM
+
         with Session(self._engine) as session:
             stmt = (
                 insert(SubjectORM)
@@ -41,6 +42,7 @@ class TickerMoodDb(BaseModel):
     def load(self, subject: "Subject") -> "Subject":
         from tickermood.database.schemas import SubjectORM
         from tickermood.subject import Subject
+
         with Session(self._engine) as session:
             stmt = (
                 select(SubjectORM)
