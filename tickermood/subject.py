@@ -3,11 +3,10 @@ from pathlib import Path
 from typing import List, Optional, Type
 
 from langchain_core.language_models import BaseChatModel
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 from tickermood.articles import News, PriceTargetNews, NewsSummary, Summary
 from tickermood.database.crud import TickerMoodDb
-from tickermood.types import ConsensusType
 
 
 class TickerSubject(BaseModel):
@@ -27,7 +26,7 @@ class PriceTarget(BaseModel):
 
 
 class Consensus(BaseModel):
-    consensus: Optional[ConsensusType] = None
+    consensus: Optional[str] = None
     reason: Optional[str] = None
 
 
@@ -38,6 +37,16 @@ class Subject(TickerSubject, PriceTarget, Consensus):
     summary: Optional[Summary] = None
     price_target_news: List[PriceTargetNews] = Field(default_factory=list)
 
+    @model_validator(mode="after")
+    def _validator(self) -> "Subject":
+        if self.news_summary and len(self.news_summary) != len(self.news_summary):
+            raise ValueError(
+                "The length of news_summary must match the length of news."
+            )
+        if len(self.news) != len(set(self.news)):
+            raise ValueError("News items must be unique.")
+        return self
+
     def save(self, database_path: Path) -> None:
         TickerMoodDb(database_path=database_path).write(self)
 
@@ -45,7 +54,7 @@ class Subject(TickerSubject, PriceTarget, Consensus):
         db = TickerMoodDb(database_path=database_path)
         return db.load(subject=self)
 
-    def add_news_summary(self, content: str, origin: news) -> None:
+    def add_news_summary(self, content: str, origin: News) -> None:
         self.news_summary.append(
             NewsSummary(
                 url=origin.url,
@@ -58,15 +67,22 @@ class Subject(TickerSubject, PriceTarget, Consensus):
     def add_summary(self, content: str) -> None:
         self.summary = Summary(content=content)
 
-    def combined_news(self):
-        return "####\n".join(n.content for n in self.news if n.content)
+    def combined_summary_news(self) -> str:
+        return "####\n".join(n.content for n in self.news_summary if n.content)
 
-    def combined_price_target_news(self):
+    def combined_price_target_news(self) -> str:
         return "####\n".join(n.content for n in self.price_target_news if n.content)
 
-    def add_price_target(self, price_target: PriceTarget) -> None:
-        for field in list(PriceTarget.model_fields):
-            setattr(self, field, getattr(price_target, field))
+    def add(self, object: BaseModel) -> None:
+        for field in list(object.model_fields):
+            setattr(self, field, getattr(object, field))
+
+    def get_consensus_data(self) -> str:
+        data = f"""Summary of the stock:
+        {self.summary}
+        {self.summary_price_target}
+        """
+        return data
 
 
 class LLM(BaseModel):
@@ -75,10 +91,14 @@ class LLM(BaseModel):
     temperature: float = 0.0
 
     def get_model(self) -> BaseChatModel:
-        return self.model_type(model_name=self.model_name, temperature=self.temperature)
+        return self.model_type(model=self.model_name, temperature=self.temperature)
 
 
 class LLMSubject(Subject, LLM):
+
+    @classmethod
+    def from_subject(cls, subject: Subject, llm: LLM) -> "LLMSubject":
+        return cls.model_validate(subject.model_dump() | llm.model_dump())
 
     def get_next_article(self) -> Optional[News]:
         return next(

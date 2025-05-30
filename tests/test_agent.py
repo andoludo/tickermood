@@ -1,18 +1,22 @@
 import json
+import tempfile
+from pathlib import Path
 from typing import Optional, Union, List
 
+import pytest
 from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import ChatMessage, AIMessage
 from langchain_core.outputs import ChatResult, Generation, ChatGeneration
 from langchain_core.runnables import Runnable
+from langchain_ollama import ChatOllama
 
-from tickermood.agent import summarize_agent
+from tickermood.agent import summarize_agent, invoke_summarize_agent
 from tickermood.articles import News, PriceTargetNews
-from tickermood.subject import LLMSubject
+from tickermood.subject import LLMSubject, Subject, LLM
 
 
 class FakeLLM(BaseChatModel):
-    def __init__(self, model_name: str, temperature: float = 0.0):
+    def __init__(self, model: str, temperature: float = 0.0):
         super().__init__()
 
     def _generate(
@@ -94,6 +98,37 @@ def test_summarize_agent():
             ),
         ],
     )
-    agent = summarize_agent()
-    result = agent.invoke(subject)
-    assert result
+    result_subject = invoke_summarize_agent(subject)
+    assert result_subject
+
+
+@pytest.mark.local
+def test_summarize_agent_llm_gemma(palantir_subject: Subject) -> None:
+    with tempfile.NamedTemporaryFile() as f:
+        database_path = Path(f.name)
+        palantir_subject.save(database_path)
+        loaded_subject = palantir_subject.load(database_path)
+        llm = LLM(model_name="gemma3:4b", model_type=ChatOllama, temperature=0.0)
+        subject = LLMSubject.from_subject(loaded_subject, llm)
+        result_subject = invoke_summarize_agent(subject)
+        result_subject.save(database_path)
+        loaded_subject = subject.load(database_path)
+        assert loaded_subject
+        assert loaded_subject.symbol == "TEST"
+
+
+@pytest.mark.local
+def test_summarize_agent_llm_qwen(palantir_subject: Subject) -> None:
+    with tempfile.NamedTemporaryFile() as f:
+        database_path = Path(f.name)
+        palantir_subject.save(database_path)
+        loaded_subject = palantir_subject.load(database_path)
+        llm = LLM(model_name="qwen3:4b", model_type=ChatOllama, temperature=0.0)
+        subject = LLMSubject.from_subject(loaded_subject, llm)
+
+        result_subject = invoke_summarize_agent(subject)
+
+        result_subject.save(database_path)
+        loaded_subject = subject.load(database_path)
+        assert loaded_subject
+        assert loaded_subject.symbol == "TEST"

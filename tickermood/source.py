@@ -6,7 +6,7 @@ from pathlib import Path
 from time import sleep
 from typing import List, Optional, Generator, Any
 
-from bs4 import BeautifulSoup
+from bs4 import BeautifulSoup, PageElement
 from pydantic import BaseModel
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
@@ -28,7 +28,8 @@ def web_browser(
     option = Options()
     option.add_argument("--disable-popup-blocking")
     option.add_argument(
-        "user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36"
+        "user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) "
+        "Chrome/123.0.0.0 Safari/537.36"
     )
     if headless:
         option.add_argument("--headless")
@@ -55,19 +56,21 @@ def soup_page(browser: WebDriver) -> Generator[BeautifulSoup, Any, None]:
 def local_html(
     url: str, load_strategy_none: bool = False, headless: bool = False
 ) -> Generator[str, Any, None]:
-    with web_browser(url, load_strategy_none, headless) as browser:
-        with tempfile.NamedTemporaryFile(suffix=".html", delete=True) as page:
-            Path(page.name).write_bytes(browser.page_source.encode("utf-8"))
-            yield "file://" + page.name
+    with web_browser(
+        url, load_strategy_none, headless
+    ) as browser, tempfile.NamedTemporaryFile(suffix=".html", delete=True) as page:
+        Path(page.name).write_bytes(browser.page_source.encode("utf-8"))
+        yield "file://" + page.name
 
 
 @contextmanager
 def temporary_web_page(
     url: str, load_strategy_none: bool = False, headless: bool = False
 ) -> Generator[BeautifulSoup, Any, None]:
-    with web_browser(url, load_strategy_none, headless) as browser:
-        with soup_page(browser) as soup:
-            yield soup
+    with web_browser(url, load_strategy_none, headless) as browser, soup_page(
+        browser
+    ) as soup:
+        yield soup
 
 
 class BaseSource(BaseModel):
@@ -84,7 +87,9 @@ class BaseSource(BaseModel):
         return subject
 
     @classmethod
-    def search(cls, subject: Subject, headless: bool = False) -> "BaseSource": ...
+    def search(
+        cls, subject: Subject, headless: bool = False
+    ) -> Optional["BaseSource"]: ...
 
     @abstractmethod
     def news(self) -> List[News]: ...
@@ -119,25 +124,29 @@ class Investing(BaseSource):
 
     def news(self) -> List[News]:
         news_url = f"{self.url}-news"
-        urls = []
+        urls: List[str] = []
         articles = []
         with temporary_web_page(news_url, headless=self.headless) as soup:
-            news = soup.find("ul", attrs={"data-test": "news-list"})
-            for item in news:
-                if not item.select_one(
-                    ".mb-1.mt-2\\.5.flex"
-                ):  # Note: dot escapes in class name with decimals
+            news_ = soup.find("ul", attrs={"data-test": "news-list"})
+            if not news_:
+                logger.warning(f"No news found at {news_url}")
+                return []
+            for item in news_:
+                if isinstance(item, (str, PageElement)):
+                    continue
+                if not item.select_one(".mb-1.mt-2\\.5.flex"):
                     links = item.find_all("a", href=True)
                     urls.extend(list({a["href"] for a in links}))
         for url in urls:
             try:
                 with temporary_web_page(url, headless=self.headless) as soup:
                     article_ = soup.find("div", class_="article_container")
-                    content = article_.get_text(separator=" ", strip=True)
-                    articles.append(
-                        News(url=news_url, source=self.name, content=content)
-                    )
-            except Exception as e:
+                    if article_ is not None:
+                        content = article_.get_text(separator=" ", strip=True)
+                        articles.append(
+                            News(url=url, source=self.name, content=content)
+                        )
+            except Exception as e:  # noqa: PERF203
                 logger.warning(f"Error processing article {url}: {e}")
                 continue
         return articles

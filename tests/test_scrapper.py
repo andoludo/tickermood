@@ -35,3 +35,12 @@ def test_search_subject():
         subject.save(Path(f.name))
         loaded_subject = subject.load(Path(f.name))
         assert loaded_subject
+
+
+def test_search_subject_():
+    subject = Subject(symbol="AAPL", name="palantir", exchange="NASDAQ")
+    with tempfile.NamedTemporaryFile(suffix=".db") as f:
+        subject = Investing.search_subject(subject, headless=True)
+        subject.save(Path(f.name))
+        loaded_subject = subject.load(Path(f.name))
+        assert loaded_subject

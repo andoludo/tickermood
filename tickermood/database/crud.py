@@ -1,6 +1,6 @@
 from functools import cached_property
 from pathlib import Path
-from typing import Any, List, TYPE_CHECKING
+from typing import Any, TYPE_CHECKING
 
 from pydantic import BaseModel, ConfigDict
 from sqlalchemy import Engine, create_engine, insert
@@ -47,8 +47,10 @@ class TickerMoodDb(BaseModel):
             stmt = (
                 select(SubjectORM)
                 .where(SubjectORM.symbol == subject.symbol)
-                .order_by(SubjectORM.date.desc())  # Assuming there's a 'date' column
+                .order_by(SubjectORM.date.desc())  # type: ignore
                 .limit(1)
             )
             result = session.exec(stmt).first()
+            if result is None:
+                raise ValueError(f"No data found for symbol: {subject.symbol}")
             return Subject.model_validate(result.model_dump())
