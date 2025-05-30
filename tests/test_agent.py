@@ -1,16 +1,16 @@
 import json
 import tempfile
 from pathlib import Path
-from typing import Optional, Union, List
+from typing import Optional, List
 
 import pytest
 from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import ChatMessage, AIMessage
-from langchain_core.outputs import ChatResult, Generation, ChatGeneration
+from langchain_core.outputs import ChatResult, ChatGeneration
 from langchain_core.runnables import Runnable
 from langchain_ollama import ChatOllama
 
-from tickermood.agent import summarize_agent, invoke_summarize_agent
+from tickermood.agent import invoke_summarize_agent
 from tickermood.articles import News, PriceTargetNews
 from tickermood.subject import LLMSubject, Subject, LLM
 
@@ -116,6 +116,22 @@ def test_summarize_agent_llm_gemma(palantir_subject: Subject) -> None:
         assert loaded_subject
         assert loaded_subject.symbol == "TEST"
 
+
+@pytest.mark.local
+def test_summarize_agent_llm_qwen(palantir_subject: Subject) -> None:
+    with tempfile.NamedTemporaryFile() as f:
+        database_path = Path(f.name)
+        palantir_subject.save(database_path)
+        loaded_subject = palantir_subject.load(database_path)
+        llm = LLM(model_name="qwen3:4b", model_type=ChatOllama, temperature=0.0)
+        subject = LLMSubject.from_subject(loaded_subject, llm)
+
+        result_subject = invoke_summarize_agent(subject)
+
+        result_subject.save(database_path)
+        loaded_subject = subject.load(database_path)
+        assert loaded_subject
+        assert loaded_subject.symbol == "TEST"
 
 @pytest.mark.local
 def test_summarize_agent_llm_qwen(palantir_subject: Subject) -> None:
