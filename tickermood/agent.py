@@ -94,7 +94,7 @@ def get_consensus(state: LLMSubject) -> LLMSubject:
         "You are a helpful assistant that summarizes financial articles."
     )
     human_message = HumanMessage(
-        f"Summarize the analyst consensus for {state.name} and return using the following "
+        f"Summarize the analyst consensus for the stock with symbol {state.symbol} and return using the following "
         f"JSON format:{get_json_schema(Consensus)}.\n\n"
         f"Note that the consensus field must be one of the following {list(get_args(ConsensusType))}\n\n"
         + state.get_consensus_data()

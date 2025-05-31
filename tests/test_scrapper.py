@@ -29,18 +29,22 @@ def test_investing_consensus() -> None:
 
 
 def test_search_subject():
-    subject = Subject(symbol="AAPL", name="beneteau", exchange="NASDAQ")
+    subject = Subject(symbol="BEN.PA", name="beneteau", exchange="NASDAQ")
     with tempfile.NamedTemporaryFile(suffix=".db") as f:
         subject = Investing.search_subject(subject, headless=True)
         subject.save(Path(f.name))
         loaded_subject = subject.load(Path(f.name))
         assert loaded_subject
+        assert loaded_subject.news
+        assert loaded_subject.price_target_news
 
 
 def test_search_subject_():
-    subject = Subject(symbol="AAPL", name="palantir", exchange="NASDAQ")
+    subject = Subject(symbol="PLTR", name="palantir", exchange="NASDAQ")
     with tempfile.NamedTemporaryFile(suffix=".db") as f:
         subject = Investing.search_subject(subject, headless=True)
         subject.save(Path(f.name))
         loaded_subject = subject.load(Path(f.name))
         assert loaded_subject
+        assert loaded_subject.news
+        assert loaded_subject.price_target_news

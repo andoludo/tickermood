@@ -1,6 +1,7 @@
 import tempfile
 from pathlib import Path
 
+from tickermood.main import TickerMood
 from tickermood.subject import Subject
 
 
@@ -11,3 +12,9 @@ def test_subject() -> None:
         loaded_subject = subject.load(Path(f.name))
         assert loaded_subject
         assert loaded_subject.symbol == "AAPL"
+
+
+def test_tickermood() -> None:
+    ticker_mood = TickerMood.from_symbols(["R3NK", "NVIDIA", "IQV", "GOOG", "VKTX"])
+    ticker_mood.run()
+    subject = ticker_mood.subjects[0]

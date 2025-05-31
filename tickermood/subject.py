@@ -1,21 +1,37 @@
+import os
+import urllib.parse
 from datetime import datetime
 from pathlib import Path
 from typing import List, Optional, Type
 
+import ollama
 from langchain_core.language_models import BaseChatModel
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field, model_validator, field_validator
 
 from tickermood.articles import News, PriceTargetNews, NewsSummary, Summary
 from tickermood.database.crud import TickerMoodDb
+from langchain_ollama import ChatOllama
+from langchain_openai import ChatOpenAI
+
+from tickermood.exceptions import InvalidLLMError, OllamaModelError, OllamaError
 
 
 class TickerSubject(BaseModel):
     symbol: str
-    name: str
+    name: Optional[str] = None
     exchange: Optional[str] = None
 
-    def to_url_search_name(self) -> str:
-        return self.name.replace(" ", "+")
+    @field_validator("symbol", mode="after")
+    @classmethod
+    def symbol_validation(cls, value: str) -> str:
+        return value.split(".")[0]
+
+    def to_symbol_search(self) -> str:
+        if self.name:
+            return urllib.parse.quote(
+                f"{self.symbol.upper()}+{urllib.parse.quote(self.name)}"
+            )
+        return self.symbol.upper()
 
 
 class PriceTarget(BaseModel):
@@ -85,10 +101,33 @@ class Subject(TickerSubject, PriceTarget, Consensus):
         return data
 
 
+def check_ollama_model(model_name: str) -> bool:
+    try:
+        model_list = ollama.list()
+    except Exception as e:
+        raise OllamaError("Failed to list Ollama models.") from e
+    if not any(model.model == model_name for model in model_list.models):
+        raise OllamaModelError(f"Ollama model '{model_name}' not found.")
+
+    return True
+
+
+def check_openai_model() -> bool:
+    return "OPENAI_API_KEY" in os.environ
+
+
 class LLM(BaseModel):
     model_type: Type[BaseChatModel]
     model_name: str
     temperature: float = 0.0
+
+    @model_validator(mode="after")
+    def _validator(self) -> "LLM":
+        if (self.model_type == ChatOllama and check_ollama_model(self.model_name)) or (
+            self.model_type == ChatOpenAI and check_openai_model()
+        ):
+            return self
+        raise InvalidLLMError("Only Ollama and OpenAI models are supported.")
 
     def get_model(self) -> BaseChatModel:
         return self.model_type(model=self.model_name, temperature=self.temperature)

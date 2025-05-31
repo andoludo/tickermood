@@ -6,7 +6,7 @@ from pathlib import Path
 from time import sleep
 from typing import List, Optional, Generator, Any
 
-from bs4 import BeautifulSoup, PageElement
+from bs4 import BeautifulSoup
 from pydantic import BaseModel
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
@@ -105,9 +105,7 @@ class Investing(BaseSource):
 
     @classmethod
     def search(cls, subject: Subject, headless: bool = False) -> Optional["Investing"]:
-        search_url = (
-            f"https://www.investing.com/search?q={subject.to_url_search_name()}"
-        )
+        search_url = f"https://www.investing.com/search?q={subject.to_symbol_search()}"
         ticker_link = None
         with temporary_web_page(search_url, headless=headless) as soup:
             sections = soup.find_all("div", class_="searchSectionMain")
@@ -132,10 +130,9 @@ class Investing(BaseSource):
                 logger.warning(f"No news found at {news_url}")
                 return []
             for item in news_:
-                if isinstance(item, (str, PageElement)):
-                    continue
-                if not item.select_one(".mb-1.mt-2\\.5.flex"):
-                    links = item.find_all("a", href=True)
+
+                if not item.select_one(".mb-1.mt-2\\.5.flex"):  # type: ignore[union-attr]
+                    links = item.find_all("a", href=True)  # type: ignore[union-attr]
                     urls.extend(list({a["href"] for a in links}))
         for url in urls:
             try:
