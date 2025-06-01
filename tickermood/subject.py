@@ -29,7 +29,7 @@ class TickerSubject(BaseModel):
     def to_symbol_search(self) -> str:
         if self.name:
             return urllib.parse.quote(
-                f"{self.symbol.upper()}+{urllib.parse.quote(self.name)}"
+                f"{self.symbol.upper()}+{self.name.replace(' ', '+')}"
             )
         return self.symbol.upper()
 

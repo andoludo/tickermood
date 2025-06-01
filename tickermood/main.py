@@ -1,8 +1,12 @@
 import logging
+import os
 from pathlib import Path
-from typing import List, Type
+from typing import List, Type, Annotated, Optional
 
+import typer
+from dotenv import load_dotenv
 from langchain_ollama import ChatOllama
+from langchain_openai import ChatOpenAI
 from pydantic import BaseModel, Field
 
 from tickermood.agent import invoke_summarize_agent
@@ -10,6 +14,7 @@ from tickermood.source import BaseSource, Investing
 from tickermood.subject import Subject, LLM, LLMSubject
 
 logger = logging.getLogger(__name__)
+app = typer.Typer()
 
 
 class TickerMood(BaseModel):
@@ -23,9 +28,20 @@ class TickerMood(BaseModel):
         )
     )
 
+    def set_database(self, database_path: Optional[Path] = None) -> None:
+        if database_path:
+            self.database_path = database_path
+
+    def set_llm(self, llm: LLM) -> None:
+        self.llm = llm
+
     @classmethod
     def from_symbols(cls, symbols: List[str]) -> "TickerMood":
         subjects = [Subject(symbol=symbol) for symbol in symbols]
+        return cls(subjects=subjects)
+
+    @classmethod
+    def from_subjects(cls, subjects: List[Subject]) -> "TickerMood":
         return cls(subjects=subjects)
 
     def search(self) -> None:
@@ -52,3 +68,25 @@ class TickerMood(BaseModel):
         self.search()
         self.call_agent()
         logger.info("TickerMood run completed.")
+
+
+@app.command()
+def run(
+    symbols: Annotated[List[str], typer.Argument()],
+    path: Optional[Path] = None,
+    openai_api_key_path: Optional[Path] = None,
+) -> None:
+    ticker_mood = TickerMood.from_symbols(symbols)
+    ticker_mood.set_database(path)
+    if openai_api_key_path:
+        openai_api_key_path = Path(openai_api_key_path)
+        if not openai_api_key_path.exists():
+            raise FileNotFoundError(
+                f"OpenAI API key file not found: {openai_api_key_path}"
+            )
+        load_dotenv(dotenv_path=openai_api_key_path)
+        if "OPENAI_API_KEY" not in os.environ:
+            raise ValueError("OpenAI API key not found in environment variables.")
+        llm = LLM(model_name="gpt-4o-mini", model_type=ChatOpenAI, temperature=0.0)
+        ticker_mood.set_llm(llm)
+    ticker_mood.run()
