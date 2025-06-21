@@ -6,14 +6,16 @@ from abc import abstractmethod
 from contextlib import contextmanager
 from pathlib import Path
 from time import sleep
-from typing import List, Optional, Generator, Any
+from typing import List, Optional, Generator, Any, Callable
 
 from bs4 import BeautifulSoup
 from pydantic import BaseModel, model_validator
 from selenium import webdriver
+from selenium.common import NoSuchElementException
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.chrome.webdriver import WebDriver
+from selenium.webdriver.common.by import By
 from webdriver_manager.chrome import ChromeDriverManager
 
 from tickermood.articles import News, PriceTargetNews
@@ -43,7 +45,10 @@ class SavePage(BaseModel):
 
 @contextmanager
 def web_browser(
-    url: str, load_strategy_none: bool = False, headless: bool = False
+    url: str,
+    load_strategy_none: bool = False,
+    headless: bool = False,
+    callback: Optional[Callable[[WebDriver], None]] = None,
 ) -> Generator[WebDriver, Any, None]:
     option = Options()
     option.add_argument("--disable-popup-blocking")
@@ -60,8 +65,13 @@ def web_browser(
     browser = webdriver.Chrome(
         service=Service(ChromeDriverManager().install()), options=option
     )
-    sleep(2)
     browser.get(url)
+    if callback:
+        sleep(2)
+        callback(browser)
+
+    sleep(2)
+
     yield browser
 
     browser.quit()
@@ -99,10 +109,11 @@ def temporary_web_page(
     load_strategy_none: bool = False,
     headless: bool = False,
     save_page: Optional[SavePage] = None,
+    callback: Optional[Callable[[WebDriver], None]] = None,
 ) -> Generator[BeautifulSoup, Any, None]:
-    with web_browser(url, load_strategy_none, headless) as browser, soup_page(
-        browser, save_page=save_page
-    ) as soup:
+    with web_browser(
+        url, load_strategy_none, headless, callback=callback
+    ) as browser, soup_page(browser, save_page=save_page) as soup:
         yield soup
 
 
@@ -194,6 +205,16 @@ class Investing(BaseSource):
         return [PriceTargetNews(url=consensus_url, content=content, source=self.name)]
 
 
+def find_cookie_banner(browser: WebDriver) -> None:
+    try:
+        button = browser.find_element(
+            By.XPATH, "/html/body/div/div/div/div/form/div[2]/div[2]/button[1]"
+        )
+        button.click()
+    except NoSuchElementException:
+        pass
+
+
 class Yahoo(BaseSource):
     name: SourceName = "Yahoo"
 
@@ -215,7 +236,10 @@ class Yahoo(BaseSource):
             if not url:
                 continue
             try:
-                with temporary_web_page(url, headless=self.headless) as soup:
+                with temporary_web_page(
+                    url, headless=self.headless, callback=find_cookie_banner
+                ) as soup:
+
                     for tag in soup(
                         [
                             "script",
