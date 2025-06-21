@@ -1,4 +1,5 @@
 import logging
+import re
 import tempfile
 from abc import abstractmethod
 from contextlib import contextmanager
@@ -7,7 +8,7 @@ from time import sleep
 from typing import List, Optional, Generator, Any
 
 from bs4 import BeautifulSoup
-from pydantic import BaseModel
+from pydantic import BaseModel, model_validator
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.chrome.service import Service
@@ -19,6 +20,22 @@ from tickermood.subject import Subject
 from tickermood.types import SourceName
 
 logger = logging.getLogger(__name__)
+PAGE_SOURCE_PATH = Path(__file__).parents[1] / "tests" / "sources"
+
+
+def clean_url(url: str) -> str:
+    return re.sub(r"[^a-zA-Z0-9]", "", url)
+
+
+class SavePage(BaseModel):
+    url: str
+    source: str
+    save: bool = False
+
+    @model_validator(mode="after")
+    def _validator(self) -> "SavePage":
+        self.url = f'{clean_url(self.url.replace("html",""))}.html'
+        return self
 
 
 @contextmanager
@@ -31,6 +48,8 @@ def web_browser(
         "user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) "
         "Chrome/123.0.0.0 Safari/537.36"
     )
+    option.add_argument("--no-sandbox")
+    option.add_argument("--disable-dev-shm-usage")
     if headless:
         option.add_argument("--headless")
     if load_strategy_none:
@@ -46,9 +65,17 @@ def web_browser(
 
 
 @contextmanager
-def soup_page(browser: WebDriver) -> Generator[BeautifulSoup, Any, None]:
+def soup_page(
+    browser: WebDriver, save_page: Optional[SavePage] = None
+) -> Generator[BeautifulSoup, Any, None]:
     with tempfile.NamedTemporaryFile(suffix=".html", delete=True) as page:
-        Path(page.name).write_bytes(browser.page_source.encode("utf-8"))
+        page_source_code = browser.page_source.encode("utf-8")
+        Path(page.name).write_bytes(page_source_code)
+        if save_page and save_page.save:
+            source_path = PAGE_SOURCE_PATH.joinpath(save_page.source)
+            source_path.mkdir(parents=True, exist_ok=True)
+            source_path.joinpath(clean_url(save_page.url)).write_bytes(page_source_code)
+
         yield BeautifulSoup(page, "html.parser")
 
 
@@ -65,10 +92,13 @@ def local_html(
 
 @contextmanager
 def temporary_web_page(
-    url: str, load_strategy_none: bool = False, headless: bool = False
+    url: str,
+    load_strategy_none: bool = False,
+    headless: bool = False,
+    save_page: Optional[SavePage] = None,
 ) -> Generator[BeautifulSoup, Any, None]:
     with web_browser(url, load_strategy_none, headless) as browser, soup_page(
-        browser
+        browser, save_page=save_page
     ) as soup:
         yield soup
 
@@ -107,7 +137,10 @@ class Investing(BaseSource):
     def search(cls, subject: Subject, headless: bool = False) -> Optional["Investing"]:
         search_url = f"https://www.investing.com/search?q={subject.to_symbol_search()}"
         ticker_link = None
-        with temporary_web_page(search_url, headless=headless) as soup:
+        save_page = SavePage(url=search_url, source="Investing", save=True)
+        with temporary_web_page(
+            search_url, headless=headless, save_page=save_page
+        ) as soup:
             sections = soup.find_all("div", class_="searchSectionMain")
             for section in sections:
                 header = section.find(class_="groupHeader")

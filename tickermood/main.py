@@ -12,6 +12,7 @@ from pydantic import BaseModel, Field
 from tickermood.agent import invoke_summarize_agent
 from tickermood.source import BaseSource, Investing
 from tickermood.subject import Subject, LLM, LLMSubject
+from tickermood.types import DatabaseConfig
 
 logger = logging.getLogger(__name__)
 app = typer.Typer()
@@ -21,16 +22,16 @@ class TickerMood(BaseModel):
     sources: List[Type[BaseSource]] = Field(default=[Investing])
     subjects: List[Subject]
     headless: bool = True
-    database_path: Path = Field(default=Path.cwd() / "tickermood.db")
+    database_config: DatabaseConfig = Field(default_factory=DatabaseConfig)
     llm: LLM = Field(
         default_factory=lambda: LLM(
             model_name="qwen3:4b", model_type=ChatOllama, temperature=0.0
         )
     )
 
-    def set_database(self, database_path: Optional[Path] = None) -> None:
-        if database_path:
-            self.database_path = database_path
+    def set_database(self, database_config: Optional[DatabaseConfig] = None) -> None:
+        if database_config:
+            self.database_config = database_config
 
     def set_llm(self, llm: LLM) -> None:
         self.llm = llm
@@ -56,13 +57,13 @@ class TickerMood(BaseModel):
                         f"Error searching for subject {subject.symbol} in {source.name}: {e}"
                     )
                     continue
-            subject.save(self.database_path)
+            subject.save(self.database_config)
 
     def call_agent(self) -> None:
         for subject in self.subjects:
             llm_subject = LLMSubject.from_subject(subject, self.llm)
             summarized_subject = invoke_summarize_agent(llm_subject)
-            summarized_subject.save(self.database_path)
+            summarized_subject.save(self.database_config)
 
     def run(self) -> None:
         self.search()
@@ -77,7 +78,7 @@ def run(
     openai_api_key_path: Optional[Path] = None,
 ) -> None:
     ticker_mood = TickerMood.from_symbols(symbols)
-    ticker_mood.set_database(path)
+    ticker_mood.set_database(DatabaseConfig(database_path=path))
     if openai_api_key_path:
         openai_api_key_path = Path(openai_api_key_path)
         if not openai_api_key_path.exists():

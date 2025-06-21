@@ -1,7 +1,6 @@
 import os
 import urllib.parse
 from datetime import datetime
-from pathlib import Path
 from typing import List, Optional, Type
 
 import ollama
@@ -14,6 +13,7 @@ from langchain_ollama import ChatOllama
 from langchain_openai import ChatOpenAI
 
 from tickermood.exceptions import InvalidLLMError, OllamaModelError, OllamaError
+from tickermood.types import DatabaseConfig
 
 
 class TickerSubject(BaseModel):
@@ -63,11 +63,17 @@ class Subject(TickerSubject, PriceTarget, Consensus):
             raise ValueError("News items must be unique.")
         return self
 
-    def save(self, database_path: Path) -> None:
-        TickerMoodDb(database_path=database_path).write(self)
+    def save(self, database_config: DatabaseConfig) -> None:
+        TickerMoodDb(
+            database_path=database_config.database_path,
+            no_migration=database_config.no_migration,
+        ).write(self)
 
-    def load(self, database_path: Path) -> "Subject":
-        db = TickerMoodDb(database_path=database_path)
+    def load(self, database_config: DatabaseConfig) -> "Subject":
+        db = TickerMoodDb(
+            database_path=database_config.database_path,
+            no_migration=database_config.no_migration,
+        )
         return db.load(subject=self)
 
     def add_news_summary(self, content: str, origin: News) -> None:

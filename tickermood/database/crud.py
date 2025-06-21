@@ -16,11 +16,12 @@ if TYPE_CHECKING:
 class TickerMoodDb(BaseModel):
     model_config = ConfigDict(arbitrary_types_allowed=True)
     database_path: Path
+    no_migration: bool = False
 
     @cached_property
     def _engine(self) -> Engine:
         database_url = f"sqlite:///{Path(self.database_path)}"
-        upgrade(database_url)
+        upgrade(database_url, no_migration=self.no_migration)
         engine = create_engine(database_url)
         return engine
 

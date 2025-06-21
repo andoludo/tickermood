@@ -1,8 +1,10 @@
 import tempfile
 from pathlib import Path
+from unittest.mock import patch
 
 from tickermood.source import Investing
 from tickermood.subject import Subject
+from tickermood.types import DatabaseConfig
 
 
 def test_investing_search() -> None:
@@ -32,8 +34,9 @@ def test_search_subject():
     subject = Subject(symbol="BEN.PA", name="beneteau", exchange="NASDAQ")
     with tempfile.NamedTemporaryFile(suffix=".db") as f:
         subject = Investing.search_subject(subject, headless=True)
-        subject.save(Path(f.name))
-        loaded_subject = subject.load(Path(f.name))
+        database_config = DatabaseConfig(database_path=Path(f.name))
+        subject.save(database_config)
+        loaded_subject = subject.load(database_config)
         assert loaded_subject
         assert loaded_subject.news
         assert loaded_subject.price_target_news
@@ -43,8 +46,49 @@ def test_search_subject_():
     subject = Subject(symbol="PLTR", name="palantir", exchange="NASDAQ")
     with tempfile.NamedTemporaryFile(suffix=".db") as f:
         subject = Investing.search_subject(subject, headless=True)
-        subject.save(Path(f.name))
-        loaded_subject = subject.load(Path(f.name))
+        database_config = DatabaseConfig(database_path=Path(f.name))
+        subject.save(database_config)
+        loaded_subject = subject.load(database_config)
         assert loaded_subject
         assert loaded_subject.news
         assert loaded_subject.price_target_news
+
+
+class MockedChrome:
+
+    def get(self, url: str):
+        return
+
+    def quit(self): ...
+    @property
+    def page_source(self):
+        return """<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>Mini Test Page</title>
+</head>
+<body>
+    <h1 id="title">Hello, Selenium!</h1>
+    <p class="description">
+        This is a lightweight page for unit-testing anything that consumes
+        <code>browser.page_source</code>.
+    </p>
+</body>
+</html>
+"""
+
+
+def mocked_chrome(*args, **kwargs):
+    return MockedChrome()
+
+
+@patch("tickermood.source.webdriver.Chrome", side_effect=mocked_chrome)
+def test_mocked_search_subject_(chrome):
+    subject = Subject(symbol="PLTR", name="palantir", exchange="NASDAQ")
+    with tempfile.NamedTemporaryFile(suffix=".db") as f:
+        subject = Investing.search_subject(subject, headless=True)
+        database_config = DatabaseConfig(database_path=Path(f.name))
+        subject.save(database_config)
+        loaded_subject = subject.load(database_config)
+        assert loaded_subject
