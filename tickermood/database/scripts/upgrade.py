@@ -19,7 +19,7 @@ def upgrade(database_url: str, no_migration: Optional[bool] = False) -> None:
         from tickermood.database.schemas import SubjectORM
 
         engine = create_engine(database_url, echo=True)
-        SubjectORM.__table__.create(engine)  # type: ignore
+        SubjectORM.__table__.create(engine, checkfirst=True)  # type: ignore
     else:
         command.upgrade(alembic_cfg, "head")
 

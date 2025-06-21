@@ -26,6 +26,7 @@ langgraph = "^0.4.7"
 langchain-ollama = "^0.3.3"
 langchain-openai = "^0.3.18"
 pydotenv = "^0.0.7"
+yfinance = "^0.2.63"
 
 
 [tool.poetry.scripts]

@@ -2,7 +2,7 @@ import tempfile
 from pathlib import Path
 from unittest.mock import patch
 
-from tickermood.source import Investing
+from tickermood.source import Investing, Yahoo
 from tickermood.subject import Subject
 from tickermood.types import DatabaseConfig
 
@@ -92,3 +92,12 @@ def test_mocked_search_subject_(chrome):
         subject.save(database_config)
         loaded_subject = subject.load(database_config)
         assert loaded_subject
+
+
+def test_yahoo_search() -> None:
+    subject = Subject(symbol="LOTB.BR")
+    yahoo = Yahoo.search(subject, headless=True)
+    news = yahoo.news()
+    price_target = yahoo.get_price_target_news()
+    assert news
+    assert price_target

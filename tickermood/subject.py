@@ -5,7 +5,7 @@ from typing import List, Optional, Type
 
 import ollama
 from langchain_core.language_models import BaseChatModel
-from pydantic import BaseModel, Field, model_validator, field_validator
+from pydantic import BaseModel, Field, model_validator
 
 from tickermood.articles import News, PriceTargetNews, NewsSummary, Summary
 from tickermood.database.crud import TickerMoodDb
@@ -18,20 +18,23 @@ from tickermood.types import DatabaseConfig
 
 class TickerSubject(BaseModel):
     symbol: str
+    symbol_without_suffix: Optional[str] = Field(default=None)
     name: Optional[str] = None
     exchange: Optional[str] = None
 
-    @field_validator("symbol", mode="after")
-    @classmethod
-    def symbol_validation(cls, value: str) -> str:
-        return value.split(".")[0]
+    @model_validator(mode="after")
+    def _validation(self) -> "TickerSubject":
+        self.symbol_without_suffix = self.symbol.split(".")[0]
+        return self
 
     def to_symbol_search(self) -> str:
+        if self.symbol_without_suffix is None:
+            raise ValueError("Symbol without suffix is not set.")
         if self.name:
             return urllib.parse.quote(
-                f"{self.symbol.upper()}+{self.name.replace(' ', '+')}"
+                f"{self.symbol_without_suffix.upper()}+{self.name.replace(' ', '+')}"
             )
-        return self.symbol.upper()
+        return self.symbol_without_suffix.upper()
 
 
 class PriceTarget(BaseModel):
