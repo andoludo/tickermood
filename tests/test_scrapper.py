@@ -101,12 +101,3 @@ def test_yahoo_search() -> None:
     price_target = yahoo.get_price_target_news()
     assert news
     assert price_target
-
-
-def test_yahoo_search2() -> None:
-    subject = Subject(symbol="NYXH.BR")
-    yahoo = Yahoo.search(subject, headless=False)
-    news = yahoo.news()
-    price_target = yahoo.get_price_target_news()
-    assert news
-    assert price_target
