@@ -25,7 +25,7 @@ def test_investing_news() -> None:
     assert len(news) > 0
     assert all(n.content is not None for n in news)
 
-
+@pytest.mark.local
 def test_investing_consensus() -> None:
     subject = Subject(symbol="IQV", name="IQVIA Holdings Inc.", exchange="NYSE")
     investing = Investing.search(subject, headless=True)
