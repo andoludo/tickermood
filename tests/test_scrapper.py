@@ -16,7 +16,7 @@ def test_investing_search() -> None:
     investing = Investing.search(subject, headless=True)
     assert investing is not None
 
-
+@pytest.mark.local
 def test_investing_news() -> None:
     subject = Subject(symbol="IQV", name="IQVIA Holdings Inc.", exchange="NYSE")
     investing = Investing.search(subject, headless=True)
