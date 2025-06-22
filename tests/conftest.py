@@ -1,6 +1,7 @@
 import pytest
 
 from tickermood.subject import Subject
+from tickermood.types import DatabaseConfig
 
 
 @pytest.fixture

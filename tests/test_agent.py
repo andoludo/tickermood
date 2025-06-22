@@ -14,6 +14,7 @@ from langchain_openai import ChatOpenAI
 from tickermood.agent import invoke_summarize_agent
 from tickermood.articles import News, PriceTargetNews
 from tickermood.subject import LLMSubject, Subject, LLM
+from tickermood.types import DatabaseConfig
 
 
 class FakeLLM(BaseChatModel):
@@ -103,67 +104,71 @@ def test_summarize_agent():
     assert result_subject
 
 
-@pytest.mark.local
+@pytest.mark.local_llm
 def test_summarize_agent_llm_gemma(palantir_subject: Subject) -> None:
     with tempfile.NamedTemporaryFile() as f:
         database_path = Path(f.name)
-        palantir_subject.save(database_path)
-        loaded_subject = palantir_subject.load(database_path)
+        database_config = DatabaseConfig(database_path=database_path)
+        palantir_subject.save(database_config)
+        loaded_subject = palantir_subject.load(database_config)
         llm = LLM(model_name="gemma3:4b", model_type=ChatOllama, temperature=0.0)
         subject = LLMSubject.from_subject(loaded_subject, llm)
         result_subject = invoke_summarize_agent(subject)
-        result_subject.save(database_path)
-        loaded_subject = subject.load(database_path)
+        result_subject.save(database_config)
+        loaded_subject = subject.load(database_config)
         assert loaded_subject
         assert loaded_subject.symbol == "TEST"
 
 
-@pytest.mark.local
+@pytest.mark.local_llm
 def test_summarize_agent_llm_qwen(palantir_subject: Subject) -> None:
     with tempfile.NamedTemporaryFile() as f:
         database_path = Path(f.name)
-        palantir_subject.save(database_path)
-        loaded_subject = palantir_subject.load(database_path)
+        database_config = DatabaseConfig(database_path=database_path)
+        palantir_subject.save(database_config)
+        loaded_subject = palantir_subject.load(database_config)
         llm = LLM(model_name="qwen3:4b", model_type=ChatOllama, temperature=0.0)
         subject = LLMSubject.from_subject(loaded_subject, llm)
 
         result_subject = invoke_summarize_agent(subject)
 
-        result_subject.save(database_path)
-        loaded_subject = subject.load(database_path)
+        result_subject.save(database_config)
+        loaded_subject = subject.load(database_config)
         assert loaded_subject
         assert loaded_subject.symbol == "TEST"
 
 
-@pytest.mark.local
+@pytest.mark.local_llm
 def test_summarize_agent_llm_qwen(palantir_subject: Subject) -> None:
     with tempfile.NamedTemporaryFile() as f:
         database_path = Path(f.name)
-        palantir_subject.save(database_path)
-        loaded_subject = palantir_subject.load(database_path)
+        database_config = DatabaseConfig(database_path=database_path)
+        palantir_subject.save(database_config)
+        loaded_subject = palantir_subject.load(database_config)
         llm = LLM(model_name="qwen3:4b", model_type=ChatOllama, temperature=0.0)
         subject = LLMSubject.from_subject(loaded_subject, llm)
 
         result_subject = invoke_summarize_agent(subject)
 
-        result_subject.save(database_path)
-        loaded_subject = subject.load(database_path)
+        result_subject.save(database_config)
+        loaded_subject = subject.load(database_config)
         assert loaded_subject
         assert loaded_subject.symbol == "TEST"
 
 
-@pytest.mark.local
+@pytest.mark.local_llm
 def test_summarize_agent_llm_chat_gpt(palantir_subject: Subject) -> None:
     with tempfile.NamedTemporaryFile() as f:
         database_path = Path(f.name)
-        palantir_subject.save(database_path)
-        loaded_subject = palantir_subject.load(database_path)
+        database_config = DatabaseConfig(database_path=database_path)
+        palantir_subject.save(database_config)
+        loaded_subject = palantir_subject.load(database_config)
         llm = LLM(model_name="gpt-4o-mini", model_type=ChatOpenAI, temperature=0.0)
         subject = LLMSubject.from_subject(loaded_subject, llm)
 
         result_subject = invoke_summarize_agent(subject)
 
-        result_subject.save(database_path)
-        loaded_subject = subject.load(database_path)
+        result_subject.save(database_config)
+        loaded_subject = subject.load(database_config)
         assert loaded_subject
         assert loaded_subject.symbol == "TEST"

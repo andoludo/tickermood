@@ -1,12 +1,16 @@
 import tempfile
 from pathlib import Path
+from typing import Any
 from unittest.mock import patch
+
+import pytest
 
 from tickermood.source import Investing, Yahoo
 from tickermood.subject import Subject
 from tickermood.types import DatabaseConfig
 
 
+@pytest.mark.local
 def test_investing_search() -> None:
     subject = Subject(symbol="IQV", name="IQVIA Holdings Inc.", exchange="NYSE")
     investing = Investing.search(subject, headless=True)
@@ -30,7 +34,8 @@ def test_investing_consensus() -> None:
     assert consensus[0].content is not None
 
 
-def test_search_subject():
+@pytest.mark.local
+def test_search_subject() -> None:
     subject = Subject(symbol="BEN.PA", name="beneteau", exchange="NASDAQ")
     with tempfile.NamedTemporaryFile(suffix=".db") as f:
         subject = Investing.search_subject(subject, headless=True)
@@ -42,7 +47,8 @@ def test_search_subject():
         assert loaded_subject.price_target_news
 
 
-def test_search_subject_():
+@pytest.mark.local
+def test_search_subject_() -> None:
     subject = Subject(symbol="PLTR", name="palantir", exchange="NASDAQ")
     with tempfile.NamedTemporaryFile(suffix=".db") as f:
         subject = Investing.search_subject(subject, headless=True)
@@ -79,12 +85,12 @@ class MockedChrome:
 """
 
 
-def mocked_chrome(*args, **kwargs):
+def mocked_chrome(*args: Any, **kwargs: Any) -> MockedChrome:
     return MockedChrome()
 
 
 @patch("tickermood.source.webdriver.Chrome", side_effect=mocked_chrome)
-def test_mocked_search_subject_(chrome):
+def test_mocked_search_subject_(chrome: MockedChrome):
     subject = Subject(symbol="PLTR", name="palantir", exchange="NASDAQ")
     with tempfile.NamedTemporaryFile(suffix=".db") as f:
         subject = Investing.search_subject(subject, headless=True)
