@@ -82,10 +82,15 @@ class TickerMood(TickerMoodNews):
 def get_news(
     symbols: List[str], database_config: DatabaseConfig, headless: bool = True
 ) -> None:
-    ticker_mood = TickerMoodNews.from_symbols(symbols)
+    ticker_mood = TickerMood.from_symbols(symbols)
     ticker_mood.set_database(database_config)
     ticker_mood.headless = headless
+    if "OPENAI_API_KEY" in os.environ:
+        llm = LLM(model_name="gpt-4o-mini", model_type=ChatOpenAI, temperature=0.0)
+        ticker_mood.set_llm(llm)
     ticker_mood.search()
+    if "OPENAI_API_KEY" in os.environ:
+        ticker_mood.call_agent()
 
 
 @app.command()
