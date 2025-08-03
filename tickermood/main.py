@@ -5,7 +5,6 @@ from typing import List, Type, Annotated, Optional
 
 import typer
 from dotenv import load_dotenv
-from langchain_ollama import ChatOllama
 from langchain_openai import ChatOpenAI
 from pydantic import BaseModel, Field
 
@@ -49,11 +48,7 @@ class TickerMoodNews(BaseModel):
 
 
 class TickerMood(TickerMoodNews):
-    llm: LLM = Field(
-        default_factory=lambda: LLM(
-            model_name="qwen3:4b", model_type=ChatOllama, temperature=0.0
-        )
-    )
+    llm: Optional[LLM] = None
 
     @classmethod
     def from_subjects(cls, subjects: List[Subject]) -> "TickerMood":
@@ -73,6 +68,8 @@ class TickerMood(TickerMoodNews):
         logger.info("TickerMood run completed.")
 
     def call_agent(self) -> None:
+        if self.llm is None:
+            raise ValueError("LLM must be set before calling the agent.")
         for subject in self.subjects:
             llm_subject = LLMSubject.from_subject(subject, self.llm)
             summarized_subject = invoke_summarize_agent(llm_subject)
