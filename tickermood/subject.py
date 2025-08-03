@@ -1,3 +1,4 @@
+import logging
 import os
 import urllib.parse
 from datetime import datetime
@@ -12,8 +13,10 @@ from tickermood.database.crud import TickerMoodDb
 from langchain_ollama import ChatOllama
 from langchain_openai import ChatOpenAI
 
-from tickermood.exceptions import InvalidLLMError, OllamaModelError, OllamaError
+from tickermood.exceptions import InvalidLLMError, OllamaModelError
 from tickermood.types import DatabaseConfig
+
+logger = logging.getLogger(__name__)
 
 
 class TickerSubject(BaseModel):
@@ -114,7 +117,8 @@ def check_ollama_model(model_name: str) -> bool:
     try:
         model_list = ollama.list()
     except Exception as e:
-        raise OllamaError("Failed to list Ollama models.") from e
+        logger.error(e)
+        return False
     if not any(model.model == model_name for model in model_list.models):
         raise OllamaModelError(f"Ollama model '{model_name}' not found.")
 
