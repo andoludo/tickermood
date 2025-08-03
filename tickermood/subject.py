@@ -13,7 +13,7 @@ from tickermood.database.crud import TickerMoodDb
 from langchain_ollama import ChatOllama
 from langchain_openai import ChatOpenAI
 
-from tickermood.exceptions import InvalidLLMError, OllamaModelError
+from tickermood.exceptions import InvalidLLMError
 from tickermood.types import DatabaseConfig
 
 logger = logging.getLogger(__name__)
@@ -120,7 +120,8 @@ def check_ollama_model(model_name: str) -> bool:
         logger.error(e)
         return False
     if not any(model.model == model_name for model in model_list.models):
-        raise OllamaModelError(f"Ollama model '{model_name}' not found.")
+        logger.error(f"Ollama model '{model_name}' not found.")
+        return False
 
     return True
 
