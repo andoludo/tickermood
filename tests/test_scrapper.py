@@ -67,6 +67,9 @@ class MockedChrome:
     def get(self, url: str):
         return
 
+    def set_page_load_timeout(self, timeout: int):
+        return
+
     def quit(self): ...
     @property
     def page_source(self):
