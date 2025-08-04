@@ -179,9 +179,9 @@ def test_summarize_agent_llm_chat_gpt(palantir_subject: Subject) -> None:
 @pytest.mark.local_llm
 def test_get_news() -> None:
     os.environ["OPENAI_API_KEY"] = (
-        "sk-hUeqNt9Fy3I94O-9rEm7k3rqwgXDsErTnyIpYjMKkgT3BlbkFJv-R9ReiDbmXPD4ysWHk2AEAEfIVyPB2tNHUk5tOv4A"
+        "***"
     )
-    symbols = ["NVDA"]
+    symbols = ["VKTX"]
     database_config = DatabaseConfig(
         database_path=Path.cwd() / "tickermood_get_news.db"
     )
