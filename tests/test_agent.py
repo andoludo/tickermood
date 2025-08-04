@@ -1,4 +1,5 @@
 import json
+import os
 import tempfile
 from pathlib import Path
 from typing import Optional, List
@@ -13,6 +14,7 @@ from langchain_openai import ChatOpenAI
 
 from tickermood.agent import invoke_summarize_agent
 from tickermood.articles import News, PriceTargetNews
+from tickermood.main import get_news
 from tickermood.subject import LLMSubject, Subject, LLM
 from tickermood.types import DatabaseConfig
 
@@ -172,3 +174,15 @@ def test_summarize_agent_llm_chat_gpt(palantir_subject: Subject) -> None:
         loaded_subject = subject.load(database_config)
         assert loaded_subject
         assert loaded_subject.symbol == "TEST"
+
+
+@pytest.mark.local_llm
+def test_get_news() -> None:
+    os.environ["OPENAI_API_KEY"] = (
+        "sk-hUeqNt9Fy3I94O-9rEm7k3rqwgXDsErTnyIpYjMKkgT3BlbkFJv-R9ReiDbmXPD4ysWHk2AEAEfIVyPB2tNHUk5tOv4A"
+    )
+    symbols = ["NVDA"]
+    database_config = DatabaseConfig(
+        database_path=Path.cwd() / "tickermood_get_news.db"
+    )
+    get_news(symbols, database_config, headless=False)

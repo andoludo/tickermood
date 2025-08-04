@@ -5,6 +5,7 @@ from typing import List, Type, Annotated, Optional
 
 import typer
 from dotenv import load_dotenv
+from langchain_ollama import ChatOllama
 from langchain_openai import ChatOpenAI
 from pydantic import BaseModel, Field
 
@@ -32,7 +33,12 @@ class TickerMoodNews(BaseModel):
         subjects = [Subject(symbol=symbol) for symbol in symbols]
         return cls(subjects=subjects)
 
-    def search(self) -> None:
+    def summarize(self, subject: Subject, llm: LLM) -> None:
+        llm_subject = LLMSubject.from_subject(subject, llm)
+        summarized_subject = invoke_summarize_agent(llm_subject)
+        summarized_subject.save(self.database_config)
+
+    def search(self, llm: Optional[LLM] = None) -> None:
         for subject in self.subjects:
             for source in self.sources:
                 try:
@@ -41,14 +47,20 @@ class TickerMoodNews(BaseModel):
                     )
                 except Exception as e:  # noqa: PERF203
                     logger.warning(
-                        f"Error searching for subject {subject.symbol} in {source.name}: {e}"
+                        f"Error searching for subject {subject.symbol} in {type(source).__name__}: {e}"
                     )
                     continue
             subject.save(self.database_config)
+            if llm:
+                self.summarize(subject, llm)
 
 
 class TickerMood(TickerMoodNews):
-    llm: Optional[LLM] = None
+    llm: LLM = Field(
+        default_factory=lambda: LLM(
+            model_name="qwen3:4b", model_type=ChatOllama, temperature=0.0
+        )
+    )
 
     @classmethod
     def from_subjects(cls, subjects: List[Subject]) -> "TickerMood":
@@ -71,23 +83,19 @@ class TickerMood(TickerMoodNews):
         if self.llm is None:
             raise ValueError("LLM must be set before calling the agent.")
         for subject in self.subjects:
-            llm_subject = LLMSubject.from_subject(subject, self.llm)
-            summarized_subject = invoke_summarize_agent(llm_subject)
-            summarized_subject.save(self.database_config)
+            self.summarize(subject, self.llm)
 
 
 def get_news(
     symbols: List[str], database_config: DatabaseConfig, headless: bool = True
 ) -> None:
-    ticker_mood = TickerMood.from_symbols(symbols)
+    llm = None
+    ticker_mood = TickerMoodNews.from_symbols(symbols)
     ticker_mood.set_database(database_config)
     ticker_mood.headless = headless
     if "OPENAI_API_KEY" in os.environ:
         llm = LLM(model_name="gpt-4o-mini", model_type=ChatOpenAI, temperature=0.0)
-        ticker_mood.set_llm(llm)
-    ticker_mood.search()
-    if "OPENAI_API_KEY" in os.environ:
-        ticker_mood.call_agent()
+    ticker_mood.search(llm)
 
 
 @app.command()
