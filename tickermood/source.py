@@ -11,7 +11,6 @@ from typing import List, Optional, Generator, Any, Callable
 from bs4 import BeautifulSoup
 from pydantic import BaseModel, model_validator
 from selenium import webdriver
-from selenium.common import NoSuchElementException
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.chrome.webdriver import WebDriver
@@ -65,7 +64,12 @@ def web_browser(
     browser = webdriver.Chrome(
         service=Service(ChromeDriverManager().install()), options=option
     )
-    browser.get(url)
+    browser.set_page_load_timeout(15)
+
+    try:
+        browser.get(url)
+    except Exception:
+        browser.execute_script("window.stop();")  # type: ignore
     if callback:
         sleep(2)
         callback(browser)
@@ -115,6 +119,7 @@ def temporary_web_page(
         url, load_strategy_none, headless, callback=callback
     ) as browser, soup_page(browser, save_page=save_page) as soup:
         yield soup
+        browser.quit()
 
 
 class BaseSource(BaseModel):
@@ -211,8 +216,8 @@ def find_cookie_banner(browser: WebDriver) -> None:
             By.XPATH, "/html/body/div/div/div/div/form/div[2]/div[2]/button[1]"
         )
         button.click()
-    except NoSuchElementException:
-        pass
+    except Exception as e:
+        logger.warning(f"Cookie banner: {e}")
 
 
 class Yahoo(BaseSource):
