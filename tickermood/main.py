@@ -11,7 +11,7 @@ from pydantic import BaseModel, Field
 
 from tickermood.agent import invoke_summarize_agent
 from tickermood.source import BaseSource, Investing, Yahoo
-from tickermood.subject import Subject, LLM, LLMSubject
+from tickermood.subject import Subject, LLM, LLMSubject, check_ollama_model
 from tickermood.types import DatabaseConfig
 
 logger = logging.getLogger(__name__)
@@ -98,6 +98,10 @@ def get_news(
     ticker_mood.headless = headless
     if "OPENAI_API_KEY" in os.environ:
         llm = LLM(model_name=model_name, model_type=ChatOpenAI, temperature=0.0)
+    elif check_ollama_model(model_name):
+        llm = LLM(model_name=model_name, model_type=ChatOllama, temperature=0.0)
+    else:
+        pass
     ticker_mood.search(llm)
 
 

@@ -51,9 +51,11 @@ class Consensus(BaseModel):
     consensus: Optional[str] = None
     reason: Optional[str] = None
 
+
 class NewsAnalysis(BaseModel):
     recommendation: Optional[str] = None
     explanation: Optional[str] = None
+
 
 class Subject(TickerSubject, PriceTarget, Consensus, NewsAnalysis):
     date: Optional[datetime] = Field(default_factory=datetime.now)

@@ -103,6 +103,7 @@ def get_consensus(state: LLMSubject) -> LLMSubject:
     state.add(parse_json_output(str(response.content), Consensus))
     return state
 
+
 def get_recommendation(state: LLMSubject) -> LLMSubject:
     llm = state.get_model()
 
@@ -110,7 +111,8 @@ def get_recommendation(state: LLMSubject) -> LLMSubject:
         "You are a helpful assistant that summarizes financial articles."
     )
     human_message = HumanMessage(
-        f"Based on the summary of recent news for {state.symbol}, return the recommendation and explanation using the following "
+        f"Based on the summary of recent news for {state.symbol}, return the recommendation and explanation "
+        f"using the following "
         f"JSON format:{get_json_schema(NewsAnalysis)}.\n\n"
         f"Choose one of the following for the recommendation {list(get_args(ConsensusType))}\n\n"
         + state.combined_summary_news()
@@ -118,6 +120,7 @@ def get_recommendation(state: LLMSubject) -> LLMSubject:
     response = llm.invoke([system_message, human_message])
     state.add(parse_json_output(str(response.content), NewsAnalysis))
     return state
+
 
 def summarize_agent() -> CompiledStateGraph:
     graph = StateGraph(LLMSubject)
