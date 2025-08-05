@@ -9,7 +9,7 @@ from langgraph.graph import StateGraph
 from langgraph.graph.state import CompiledStateGraph
 from pydantic import BaseModel
 
-from tickermood.subject import Subject, LLMSubject, PriceTarget, Consensus
+from tickermood.subject import Subject, LLMSubject, PriceTarget, Consensus, NewsAnalysis
 from tickermood.types import ConsensusType
 
 logger = logging.getLogger(__name__)
@@ -103,6 +103,21 @@ def get_consensus(state: LLMSubject) -> LLMSubject:
     state.add(parse_json_output(str(response.content), Consensus))
     return state
 
+def get_recommendation(state: LLMSubject) -> LLMSubject:
+    llm = state.get_model()
+
+    system_message = SystemMessage(
+        "You are a helpful assistant that summarizes financial articles."
+    )
+    human_message = HumanMessage(
+        f"Based on the summary of recent news for {state.symbol}, return the recommendation and explanation using the following "
+        f"JSON format:{get_json_schema(NewsAnalysis)}.\n\n"
+        f"Choose one of the following for the recommendation {list(get_args(ConsensusType))}\n\n"
+        + state.combined_summary_news()
+    )
+    response = llm.invoke([system_message, human_message])
+    state.add(parse_json_output(str(response.content), NewsAnalysis))
+    return state
 
 def summarize_agent() -> CompiledStateGraph:
     graph = StateGraph(LLMSubject)
@@ -111,14 +126,16 @@ def summarize_agent() -> CompiledStateGraph:
     graph.add_node("reduce", reduce)
     graph.add_node("price_target", price_target)
     graph.add_node("get_consensus", get_consensus)
+    graph.add_node("get_recommendation", get_recommendation)
     graph.set_entry_point("summarize")
     graph.add_conditional_edges(
         "summarize", has_more_articles, {True: "summarize", False: "reduce"}
     )
     graph.add_edge("reduce", "price_target")
     graph.add_edge("price_target", "get_consensus")
+    graph.add_edge("get_consensus", "get_recommendation")
 
-    graph.set_finish_point("get_consensus")
+    graph.set_finish_point("get_recommendation")
 
     return graph.compile()
 
