@@ -27,11 +27,14 @@ def get_json_schema(model: Type[BaseModel]) -> str:
 
 def parse_json_output(model_response: str, model: Type[BaseModel]) -> BaseModel:
     parser = JsonOutputParser()
+    raw_model_response = remove_tagged_text(model_response)
     try:
-        parsed_output = parser.parse(remove_tagged_text(model_response))
+        parsed_output = parser.parse(raw_model_response)
         return model.model_validate(parsed_output)
     except Exception as e:
-        logger.error(f"Failed to parse model response into {model.__name__}: {e}")
+        logger.error(
+            f"Failed to parse model response into {model.__name__}: {e}. parsed_output: {raw_model_response}"
+        )
         return model()
 
 
@@ -111,11 +114,14 @@ def get_recommendation(state: LLMSubject) -> LLMSubject:
         "You are a helpful assistant that summarizes financial articles."
     )
     human_message = HumanMessage(
-        f"Based on the summary of recent news for {state.symbol}, return the recommendation and explanation "
-        f"using the following "
-        f"JSON format:{get_json_schema(NewsAnalysis)}.\n\n"
-        f"Choose one of the following for the recommendation {list(get_args(ConsensusType))}\n\n"
-        + state.combined_summary_news()
+        "Return the 'recommendation' and 'explanation' in the following json format:\n\n"
+        "{'recommendation': one of "
+        + f"{list(get_args(ConsensusType))}"
+        + " , 'explanation': "
+        "Explain why the recommendation was given.}.\n\n"
+        f"The 'recommendation' must be one of the following: {list(get_args(ConsensusType))}\n\n"
+        f"Extract the recommendation and the reasoning behind your recommendation based on the following "
+        f"news of {state.symbol}: {state.combined_summary_news()}, "
     )
     response = llm.invoke([system_message, human_message])
     state.add(parse_json_output(str(response.content), NewsAnalysis))
