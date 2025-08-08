@@ -8,6 +8,7 @@ from dotenv import load_dotenv
 from langchain_ollama import ChatOllama
 from langchain_openai import ChatOpenAI
 from pydantic import BaseModel, Field
+from rich.console import Console
 
 from tickermood.agent import invoke_summarize_agent
 from tickermood.source import BaseSource, Investing, Yahoo
@@ -29,6 +30,9 @@ class TickerMoodNews(BaseModel):
     subjects: List[Subject]
     headless: bool = True
     database_config: DatabaseConfig = Field(default_factory=DatabaseConfig)
+
+    def headed(self) -> None:
+        self.headless = False
 
     def set_database(self, database_config: Optional[DatabaseConfig] = None) -> None:
         if database_config:
@@ -116,9 +120,12 @@ def run(
     symbols: Annotated[List[str], typer.Argument()],
     path: Optional[Path] = None,
     model: Optional[str] = None,
+    headless: bool = False,
     openai_api_key_path: Optional[Path] = None,
 ) -> None:
     ticker_mood = TickerMood.from_symbols(symbols)
+    if not headless:
+        ticker_mood.headed()
     path = path or Path.cwd() / "tickermood.db"
     ticker_mood.set_database(DatabaseConfig(database_path=path))
     if openai_api_key_path:
@@ -136,4 +143,11 @@ def run(
     if not openai_api_key_path and model:
         llm = LLM(model_name=model, model_type=ChatOllama, temperature=0.0)
         ticker_mood.set_llm(llm)
-    ticker_mood.run()
+    console = Console()
+
+    with console.status(
+        f"[bold green]Fetching and analysing articles for {', '.join(symbols)}...[/]",
+        spinner="dots",
+    ):
+        ticker_mood.run()
+        console.log("[bold green]Done![/]")
