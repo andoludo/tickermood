@@ -12,8 +12,11 @@ Install Tickermood via pip:
 pip install tickermood
 ```
 
-> **Note**: To use Tickermood locally, [Ollama](https://ollama.com/) must be installed. Alternatively, you can use the OpenAI API by providing your API key.
+> **Note**: To use Tickermood locally, [Ollama](https://ollama.com/) must be installed and qwen3:4b model needs to be available.
 
+```bash
+ollama pull qwen3:4b
+```
 ---
 
 ## 🚀 Usage
@@ -30,7 +33,7 @@ ticker_mood.run()
 ### CLI Usage
 
 ```bash
-tickermood run AAPL GOOGL MSFT
+tickermood AAPL GOOGL MSFT
 ```
 
 This will:
@@ -65,7 +68,7 @@ Tickermood creates a SQLite database in the current directory named `tickermood.
 Or, pass the key via CLI:
 
 ```bash
-tickermood run AAPL GOOGL MSFT --openai_api_key_path /path/to/openai_api_key.txt
+tickermood AAPL GOOGL MSFT --openai_api_key_path /path/to/openai_api_key.txt
 ```
 
 ---

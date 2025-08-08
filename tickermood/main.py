@@ -120,7 +120,7 @@ def run(
     symbols: Annotated[List[str], typer.Argument()],
     path: Optional[Path] = None,
     model: Optional[str] = None,
-    headless: bool = False,
+    headless: bool = True,
     openai_api_key_path: Optional[Path] = None,
 ) -> None:
     ticker_mood = TickerMood.from_symbols(symbols)
