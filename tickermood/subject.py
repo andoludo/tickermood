@@ -6,6 +6,7 @@ from typing import List, Optional, Type
 
 import ollama
 from langchain_core.language_models import BaseChatModel
+from openai import OpenAI
 from pydantic import BaseModel, Field, model_validator
 
 from tickermood.articles import News, PriceTargetNews, NewsSummary, Summary
@@ -131,8 +132,13 @@ def check_ollama_model(model_name: str) -> bool:
     return True
 
 
-def check_openai_model() -> bool:
-    return "OPENAI_API_KEY" in os.environ
+def check_openai_model(model_name: str) -> bool:
+    if "OPENAI_API_KEY" not in os.environ:
+        return False
+    client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+
+    models = client.models.list()
+    return any(model.id == model_name for model in models.data)
 
 
 class LLM(BaseModel):
@@ -143,10 +149,12 @@ class LLM(BaseModel):
     @model_validator(mode="after")
     def _validator(self) -> "LLM":
         if (self.model_type == ChatOllama and check_ollama_model(self.model_name)) or (
-            self.model_type == ChatOpenAI and check_openai_model()
+            self.model_type == ChatOpenAI and check_openai_model(self.model_name)
         ):
             return self
-        raise InvalidLLMError("Only Ollama and OpenAI models are supported.")
+        raise InvalidLLMError(
+            f"Only Ollama and OpenAI models are supported. Model {self.model_name} is not available."
+        )
 
     def get_model(self) -> BaseChatModel:
         return self.model_type(model=self.model_name, temperature=self.temperature)

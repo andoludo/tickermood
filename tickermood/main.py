@@ -109,9 +109,11 @@ def get_news(
 def run(
     symbols: Annotated[List[str], typer.Argument()],
     path: Optional[Path] = None,
+    model: Optional[str] = None,
     openai_api_key_path: Optional[Path] = None,
 ) -> None:
     ticker_mood = TickerMood.from_symbols(symbols)
+    path = path or Path.cwd() / "tickermood.db"
     ticker_mood.set_database(DatabaseConfig(database_path=path))
     if openai_api_key_path:
         openai_api_key_path = Path(openai_api_key_path)
@@ -122,6 +124,10 @@ def run(
         load_dotenv(dotenv_path=openai_api_key_path)
         if "OPENAI_API_KEY" not in os.environ:
             raise ValueError("OpenAI API key not found in environment variables.")
-        llm = LLM(model_name="gpt-4o-mini", model_type=ChatOpenAI, temperature=0.0)
+        model = model or "gpt-4o-mini"
+        llm = LLM(model_name=model, model_type=ChatOpenAI, temperature=0.0)
+        ticker_mood.set_llm(llm)
+    if not openai_api_key_path and model:
+        llm = LLM(model_name=model, model_type=ChatOllama, temperature=0.0)
         ticker_mood.set_llm(llm)
     ticker_mood.run()
