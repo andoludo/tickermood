@@ -5,7 +5,7 @@ from unittest.mock import patch
 
 import pytest
 
-from tickermood.source import Investing, Yahoo
+from tickermood.source import Investing, Yahoo, Marketwatch
 from tickermood.subject import Subject
 from tickermood.types import DatabaseConfig
 
@@ -20,7 +20,7 @@ def test_investing_search() -> None:
 @pytest.mark.local
 def test_investing_news() -> None:
     subject = Subject(symbol="IQV", name="IQVIA Holdings Inc.", exchange="NYSE")
-    investing = Investing.search(subject, headless=True)
+    investing = Investing.search(subject, headless=False)
     news = investing.news()
     assert news
     assert len(news) > 0
@@ -112,3 +112,10 @@ def test_yahoo_search() -> None:
     price_target = yahoo.get_price_target_news()
     assert news
     assert price_target
+
+
+def test_market_watch_search() -> None:
+    subject = Subject(symbol="PLTR")
+    market_watch = Marketwatch.search(subject, headless=True)
+    news = market_watch.news()
+    assert news

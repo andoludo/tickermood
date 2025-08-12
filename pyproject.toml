@@ -27,6 +27,7 @@ langchain-ollama = "^0.3.3"
 langchain-openai = "^0.3.18"
 pydotenv = "^0.0.7"
 yfinance = "^0.2.63"
+undetected-chromedriver = "^3.5.5"
 
 
 [tool.poetry.scripts]

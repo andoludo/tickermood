@@ -2,26 +2,23 @@ import json
 import logging
 import re
 import tempfile
+import time
 from abc import abstractmethod
 from contextlib import contextmanager
 from pathlib import Path
 from time import sleep
 from typing import List, Optional, Generator, Any, Callable
 
+import undetected_chromedriver as uc  # type: ignore[import-untyped]
+import yfinance as yf  # type: ignore[import-untyped]
 from bs4 import BeautifulSoup
 from pydantic import BaseModel, model_validator
-from selenium import webdriver
-from selenium.webdriver.chrome.options import Options
-from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.chrome.webdriver import WebDriver
 from selenium.webdriver.common.by import By
-from webdriver_manager.chrome import ChromeDriverManager
 
 from tickermood.articles import News, PriceTargetNews
 from tickermood.subject import Subject
 from tickermood.types import SourceName
-
-import yfinance as yf  # type: ignore[import-untyped]
 
 logger = logging.getLogger(__name__)
 PAGE_SOURCE_PATH = Path(__file__).parents[1] / "tests" / "sources"
@@ -49,35 +46,18 @@ def web_browser(
     headless: bool = False,
     callback: Optional[Callable[[WebDriver], None]] = None,
 ) -> Generator[WebDriver, Any, None]:
-    option = Options()
-    option.add_argument("--disable-popup-blocking")
-    option.add_argument(
-        "user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) "
-        "Chrome/123.0.0.0 Safari/537.36"
-    )
-    option.add_argument("--no-sandbox")
-    option.add_argument("--disable-dev-shm-usage")
-    if headless:
-        option.add_argument("--headless")
-    if load_strategy_none:
-        option.page_load_strategy = "none"
-    browser = webdriver.Chrome(
-        service=Service(ChromeDriverManager().install()), options=option
-    )
+    browser = uc.Chrome(headless=headless, use_subprocess=False)
     browser.set_page_load_timeout(15)
 
     try:
         browser.get(url)
     except Exception:
-        browser.execute_script("window.stop();")  # type: ignore
+        browser.execute_script("window.stop();")
     if callback:
         sleep(2)
         callback(browser)
-
     sleep(2)
-
     yield browser
-
     browser.quit()
 
 
@@ -126,6 +106,7 @@ class BaseSource(BaseModel):
     name: SourceName
     url: str
     headless: bool = False
+    news_limit: int = 5
 
     @classmethod
     def search_subject(cls, subject: Subject, headless: bool = False) -> Subject:
@@ -186,15 +167,22 @@ class Investing(BaseSource):
                 if not item.select_one(".mb-1.mt-2\\.5.flex"):  # type: ignore[union-attr]
                     links = item.find_all("a", href=True)  # type: ignore[union-attr]
                     urls.extend(list({a["href"] for a in links}))
-        for url in urls:
+        for url in urls[: self.news_limit]:
             try:
                 with temporary_web_page(url, headless=self.headless) as soup:
-                    article_ = soup.find("div", class_="article_container")
-                    if article_ is not None:
-                        content = article_.get_text(separator=" ", strip=True)
-                        articles.append(
-                            News(url=url, source=self.name, content=content)
-                        )
+                    if soup is not None:
+                        article_ = soup.find("div", class_="article_container")
+                        if article_ is not None:
+                            content = article_.get_text(separator=" ", strip=True)
+                            articles.append(
+                                News(url=url, source=self.name, content=content)
+                            )
+                        else:
+                            content = soup.get_text(separator=" ", strip=True)
+                            articles.append(
+                                News(url=url, source=self.name, content=content)
+                            )
+
             except Exception as e:  # noqa: PERF203
                 logger.warning(f"Error processing article {url}: {e}")
                 continue
@@ -237,26 +225,13 @@ class Yahoo(BaseSource):
             for n in ticker.get_news()
         ]
         articles = []
-        for url in urls:
+        for url in urls[: self.news_limit]:
             if not url:
                 continue
             try:
                 with temporary_web_page(
                     url, headless=self.headless, callback=find_cookie_banner
                 ) as soup:
-
-                    for tag in soup(
-                        [
-                            "script",
-                            "style",
-                            "noscript",
-                            "svg",
-                            "meta",
-                            "header",
-                            "footer",
-                        ]
-                    ):
-                        tag.decompose()
                     if soup is not None:
                         content = soup.get_text(separator=" ", strip=True)
                         articles.append(
@@ -276,3 +251,61 @@ class Yahoo(BaseSource):
                 source=self.name,
             )
         ]
+
+
+def find_cookie_banner_market_watch(browser: WebDriver) -> None:
+    time.sleep(2)
+    try:
+        iframe = browser.find_element(By.XPATH, "/html/body/div[12]/iframe")
+        browser.switch_to.frame(iframe)
+        button = browser.find_element(
+            By.XPATH, "/html/body/div/div[2]/div[4]/div/div/button[2]"
+        )
+        button.click()
+    except Exception as e:
+        logger.warning(f"Cookie banner: {e}")
+
+
+class Marketwatch(BaseSource):
+    name: SourceName = "Marketwatch"
+
+    @classmethod
+    def search(
+        cls, subject: Subject, headless: bool = False
+    ) -> Optional["Marketwatch"]:
+        return cls(
+            url=subject.symbol,
+            headless=headless,
+        )
+
+    def news(self) -> List[News]:
+
+        news_url = f"https://www.marketwatch.com/investing/stock/{self.url.lower()}"
+        articles = []
+        urls: List[str] = []
+        with temporary_web_page(
+            news_url, headless=self.headless, callback=find_cookie_banner_market_watch
+        ) as soup:
+            urls.extend(
+                [
+                    str(a["href"])
+                    for a in soup.select(
+                        'div.tab__pane[data-tab-pane="Other Sources"] a.link[href]'
+                    )
+                ]
+            )
+        for url_ in urls[: self.news_limit]:
+            try:
+                with temporary_web_page(url_, headless=self.headless) as soup:
+                    if soup is not None:
+                        content = soup.get_text(separator=" ", strip=True)
+                        articles.append(
+                            News(url=url_, source=self.name, content=content)
+                        )
+            except Exception as e:  # noqa: PERF203
+                logger.warning(f"Error processing article {url_}: {e}")
+                continue
+        return articles
+
+    def get_price_target_news(self) -> List[PriceTargetNews]:
+        return []
