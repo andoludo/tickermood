@@ -94,7 +94,7 @@ def mocked_chrome(*args: Any, **kwargs: Any) -> MockedChrome:
     return MockedChrome()
 
 
-@patch("tickermood.source.webdriver.Chrome", side_effect=mocked_chrome)
+@patch("tickermood.source.uc.Chrome", side_effect=mocked_chrome)
 def test_mocked_search_subject_(chrome: MockedChrome):
     subject = Subject(symbol="PLTR", name="palantir", exchange="NASDAQ")
     with tempfile.NamedTemporaryFile(suffix=".db") as f:
