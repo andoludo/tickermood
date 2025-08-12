@@ -45,12 +45,6 @@ jobs:
           python-version: "3.10"
       - name: Install dependencies
         run: poetry install
-      - name: Install Chrome latest
-        run: |
-          sudo apt-get update
-          sudo apt-get remove -y google-chrome-stable || true
-          wget -q https://dl.google.com/linux/chrome/deb/pool/main/g/google-chrome-stable/google-chrome-stable_139.0.7258.66-1_amd64.deb
-          sudo apt-get install -y ./google-chrome-stable_139.0.7258.66-1_amd64.deb
       - name: Install nox dependencies
         run: poetry run nox -s install
       - name: Run tests

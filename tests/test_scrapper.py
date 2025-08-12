@@ -105,6 +105,7 @@ def test_mocked_search_subject_(chrome: MockedChrome):
         assert loaded_subject
 
 
+@pytest.mark.skip("Until Chrome 139 is available on the image")
 def test_yahoo_search() -> None:
     subject = Subject(symbol="LOTB.BR")
     yahoo = Yahoo.search(subject, headless=True)
@@ -114,6 +115,7 @@ def test_yahoo_search() -> None:
     assert price_target
 
 
+@pytest.mark.skip("Until Chrome 139 is available on the image")
 def test_market_watch_search() -> None:
     subject = Subject(symbol="PLTR")
     market_watch = Marketwatch.search(subject, headless=True)
