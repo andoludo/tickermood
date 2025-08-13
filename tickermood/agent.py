@@ -191,5 +191,5 @@ def summarize_agent() -> CompiledStateGraph:
 def invoke_summarize_agent(subject: LLMSubject) -> Subject:
 
     graph = summarize_agent()
-    subject = graph.invoke(subject)  # type: ignore
+    subject = graph.invoke(subject, config={"recursion_limit": 50})  # type: ignore
     return Subject.model_validate(subject)
