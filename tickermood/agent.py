@@ -97,12 +97,20 @@ def price_target(state: LLMSubject) -> LLMSubject:
     )
     human_message = HumanMessage(
         f"""
-        From the text below (related to {state.to_name()}), do the following:
-        1. Extract the **high price target** and **low price target** for {state.to_name()}.
-        2. Provide a short summary containing only information directly relevant to {state.to_name()}.
-        3. Return the result **strictly** in the following JSON format (no extra text or explanation):
+        You are a JSON generator. Output MUST be a single valid JSON object matching the schema below. 
+        Do NOT include any text, labels, markdown, or backticks before or after the JSON.
 
+        Task (about {state.to_name()}):
+        1) Extract numeric high and low price targets into 'high_price_target' and 'low_price_target'.
+           - Use plain numbers (no currency symbols, no commas). If absent, use null.
+           - If multiple targets exist, choose the maximum for high and the minimum for low.
+        2) Write a 1-2 sentence summary directly relevant to {state.to_name()} into 'summary_price_target' 
+        (no tickers of other companies).
+
+        Schema (use exactly these keys and types):
         {get_json_schema(PriceTarget)}
+
+        Return ONLY the JSON.
 
         Text:
         {state.combined_price_target_news()}
@@ -121,18 +129,27 @@ def get_consensus(state: LLMSubject) -> LLMSubject:
     )
     human_message = HumanMessage(
         f"""
-        From the text below, summarize the **analyst consensus** for the stock with symbol {state.to_name()}.
+    You are a JSON generator. Output MUST be ONE valid JSON object. 
+    No prose, no markdown, no backticks, no labels before/after the JSON.
 
-        Instructions:
-        1. Determine the consensus rating based only on the provided text.
-        2. The "consensus" field must be exactly one of the following values: {list(get_args(ConsensusType))}.
-        3. Return the result **strictly** in the following JSON format (no extra text or explanation):
+    From the text below, summarize the **analyst consensus** for the stock with symbol {state.to_name()}.
 
-        {get_json_schema(Consensus)}
+    Task (about symbol {state.to_name()}):
+    - Read the text and determine the analyst consensus for {state.to_name()}.
+    - The "consensus" value MUST be exactly one of: {list(get_args(ConsensusType))}.
+    - Give the reasoning behind the consensus given in the "reason" field.
 
-        Text:
-        {state.get_consensus_data()}
-        """
+    Schema (use exactly these keys and types):
+    {get_json_schema(Consensus)}
+
+    Return ONLY the JSON object.
+
+    Example output (format only, not the answer):
+    {{"consensus":"Buy","reason": "Analysts are optimistic about the stock's future performance..."}}
+
+    Text:
+    {state.get_consensus_data()}
+    """
     )
     response = llm.invoke([system_message, human_message])
     state.add(parse_json_output(str(response.content), Consensus))

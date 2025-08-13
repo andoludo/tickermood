@@ -11,7 +11,7 @@ from pydantic import BaseModel, Field
 from rich.console import Console
 
 from tickermood.agent import invoke_summarize_agent
-from tickermood.source import BaseSource, Investing, Yahoo, Marketwatch
+from tickermood.source import BaseSource, Investing, Yahoo, Marketwatch, StockAnalysis
 from tickermood.subject import (
     Subject,
     LLM,
@@ -26,7 +26,9 @@ app = typer.Typer()
 
 
 class TickerMoodNews(BaseModel):
-    sources: List[Type[BaseSource]] = Field(default=[Investing, Yahoo, Marketwatch])
+    sources: List[Type[BaseSource]] = Field(
+        default=[Investing, Yahoo, StockAnalysis, Marketwatch]
+    )
     subjects: List[Subject]
     headless: bool = True
     database_config: DatabaseConfig = Field(default_factory=DatabaseConfig)
