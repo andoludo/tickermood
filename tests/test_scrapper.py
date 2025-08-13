@@ -5,7 +5,7 @@ from unittest.mock import patch
 
 import pytest
 
-from tickermood.source import Investing, Yahoo, Marketwatch
+from tickermood.source import Investing, Yahoo, Marketwatch, StockAnalysis
 from tickermood.subject import Subject
 from tickermood.types import DatabaseConfig
 
@@ -117,7 +117,17 @@ def test_yahoo_search() -> None:
 
 @pytest.mark.skip("Until Chrome 139 is available on the image")
 def test_market_watch_search() -> None:
-    subject = Subject(symbol="PLTR")
-    market_watch = Marketwatch.search(subject, headless=True)
+    subject = Subject(symbol="NVDA")
+    market_watch = Marketwatch.search(subject, headless=False)
     news = market_watch.news()
     assert news
+
+
+@pytest.mark.skip("Until Chrome 139 is available on the image")
+def test_stock_analysis() -> None:
+    subject = Subject(symbol="NVDA")
+    market_watch = StockAnalysis.search(subject, headless=False)
+    news = market_watch.news()
+    price_target = market_watch.get_price_target_news()
+    assert news
+    assert price_target

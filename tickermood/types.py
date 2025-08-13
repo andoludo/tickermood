@@ -3,7 +3,7 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
-SourceName = Literal["Investing", "Marketwatch", "Yahoo"]
+SourceName = Literal["Investing", "Marketwatch", "Yahoo", "StockAnalysis"]
 ConsensusType = Literal[
     "Strong Buy", "Buy", "Cautious Buy", "Hold", "Cautious Sell", "Sell", "Strong Sell"
 ]

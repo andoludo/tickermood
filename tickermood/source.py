@@ -106,7 +106,7 @@ class BaseSource(BaseModel):
     name: SourceName
     url: str
     headless: bool = False
-    news_limit: int = 5
+    news_limit: int = 10
 
     @classmethod
     def search_subject(cls, subject: Subject, headless: bool = False) -> Subject:
@@ -167,6 +167,7 @@ class Investing(BaseSource):
                 if not item.select_one(".mb-1.mt-2\\.5.flex"):  # type: ignore[union-attr]
                     links = item.find_all("a", href=True)  # type: ignore[union-attr]
                     urls.extend(list({a["href"] for a in links}))
+        urls = list(set(urls))  # Remove duplicates
         for url in urls[: self.news_limit]:
             try:
                 with temporary_web_page(url, headless=self.headless) as soup:
@@ -220,10 +221,12 @@ class Yahoo(BaseSource):
 
     def news(self) -> List[News]:
         ticker = yf.Ticker(self.url)
-        urls = [
-            n.get("content", {}).get("canonicalUrl", {}).get("url", "")
-            for n in ticker.get_news()
-        ]
+        urls = list(
+            {
+                n.get("content", {}).get("canonicalUrl", {}).get("url", "")
+                for n in ticker.get_news()
+            }
+        )
         articles = []
         for url in urls[: self.news_limit]:
             if not url:
@@ -280,7 +283,7 @@ class Marketwatch(BaseSource):
 
     def news(self) -> List[News]:
 
-        news_url = f"https://www.marketwatch.com/investing/stock/{self.url.lower()}"
+        news_url = f"https://www.marketwatch.com/investing/stock/{self.url.lower().split('.')[0]}"
         articles = []
         urls: List[str] = []
         with temporary_web_page(
@@ -308,4 +311,72 @@ class Marketwatch(BaseSource):
         return articles
 
     def get_price_target_news(self) -> List[PriceTargetNews]:
+        return []
+
+
+def find_cookie_banner_stock_analysis(browser: WebDriver) -> None:
+    time.sleep(2)
+    try:
+        button = browser.find_element(
+            By.XPATH, "/html/body/div[2]/div[2]/div[2]/div[2]/div[2]/button[1]"
+        )
+        button.click()
+    except Exception as e:
+        logger.warning(f"Cookie banner: {e}")
+
+
+class StockAnalysis(BaseSource):
+    name: SourceName = "StockAnalysis"
+
+    @classmethod
+    def search(
+        cls, subject: Subject, headless: bool = False
+    ) -> Optional["StockAnalysis"]:
+        return cls(
+            url=subject.symbol,
+            headless=headless,
+        )
+
+    def news(self) -> List[News]:
+        news_url = f"https://stockanalysis.com/stocks/{self.url.lower().split('.')[0]}"
+        articles = []
+        urls: List[str] = []
+        with temporary_web_page(
+            news_url, headless=self.headless, callback=find_cookie_banner_stock_analysis
+        ) as soup:
+            urls = list(
+                {
+                    str(a["href"])
+                    for a in soup.find_all("a", href=True)
+                    if str(a["href"]).startswith("https://www.")
+                }
+            )
+
+        for url_ in urls[: self.news_limit]:
+            try:
+                with temporary_web_page(url_, headless=self.headless) as soup:
+                    if soup is not None:
+                        content = soup.get_text(separator=" ", strip=True)
+                        articles.append(
+                            News(url=url_, source=self.name, content=content)
+                        )
+            except Exception as e:  # noqa: PERF203
+                logger.warning(f"Error processing article {url_}: {e}")
+                continue
+        return articles
+
+    def get_price_target_news(self) -> List[PriceTargetNews]:
+        news_url = f"https://stockanalysis.com/stocks/{self.url.lower().split('.')[0]}/forecast/"
+        with temporary_web_page(
+            news_url, headless=self.headless, callback=find_cookie_banner_stock_analysis
+        ) as soup:
+            if soup is not None:
+                content = soup.get_text(separator=" ", strip=True)
+                return [
+                    PriceTargetNews(
+                        url=news_url,
+                        content=content,
+                        source=self.name,
+                    )
+                ]
         return []
