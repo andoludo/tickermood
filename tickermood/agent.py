@@ -164,22 +164,19 @@ def get_recommendation(state: LLMSubject) -> LLMSubject:
     )
     human_message = HumanMessage(
         f"""
-        You are a JSON generator. Output MUST be a single valid JSON object.
-        No prose, no markdown, no backticks, and nothing before or after the JSON.
-        From the text below, summarize the **analyst consensus** for the stock with symbol {state.to_name()}.
+        You are a JSON generator. Output MUST be one valid JSON object.
+        No prose, no markdown, no backticks, nothing before or after the JSON.
 
-        Task (about {state.to_name()}):
-        - Read the text and news and decide a stock recommendation about {state.to_name()}.
-        - "recommendation" MUST be exactly one of: {list(get_args(ConsensusType))}
-        - "explanation" MUST be a comprehensive reason based only on the text about {state.to_name()} given below.
+        Task (symbol {state.to_name()}):
+        - Decide a stock recommendation from the text below.
+        - "recommendation" MUST be exactly one of: {list(get_args(ConsensusType))}.
+        - "explanation" MUST be brief (1-3 sentences) and based only on the text.
 
-        Schema (use exactly these keys and types):
-        {get_json_schema(NewsAnalysis)}
-        Example output (format only, not the answer):
-        {{"recommendation":"Buy","explanation":"Strong guidance and margin expansion cited by multiple analysts."}}
+        Return ONLY a JSON object with exactly these keys:
+        {{"recommendation": "<one of {list(get_args(ConsensusType))}", "explanation": "<brief reason>"}}
 
         Text:
-        {state.combined_summary_news()}
+        {state.get_consensus_data()}
         """
     )
     response = llm.invoke([system_message, human_message])
