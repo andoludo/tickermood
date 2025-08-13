@@ -166,21 +166,19 @@ def get_recommendation(state: LLMSubject) -> LLMSubject:
         f"""
         You are a JSON generator. Output MUST be a single valid JSON object.
         No prose, no markdown, no backticks, and nothing before or after the JSON.
+        From the text below, summarize the **analyst consensus** for the stock with symbol {state.to_name()}.
 
         Task (about {state.to_name()}):
-        - Read the news and decide a stock recommendation.
+        - Read the text and news and decide a stock recommendation about {state.to_name()}.
         - "recommendation" MUST be exactly one of: {list(get_args(ConsensusType))}
-        - "explanation" MUST be a brief 1-2 sentence reason based only on the news about {state.to_name()}.
+        - "explanation" MUST be a comprehensive reason based only on the text about {state.to_name()} given below.
 
-        Return the result STRICTLY in this schema (use exactly these keys and types):
+        Schema (use exactly these keys and types):
         {get_json_schema(NewsAnalysis)}
-
         Example output (format only, not the answer):
         {{"recommendation":"Buy","explanation":"Strong guidance and margin expansion cited by multiple analysts."}}
 
-        Return ONLY the JSON.
-
-        News:
+        Text:
         {state.combined_summary_news()}
         """
     )
