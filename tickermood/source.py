@@ -340,7 +340,6 @@ class StockAnalysis(BaseSource):
     def news(self) -> List[News]:
         news_url = f"https://stockanalysis.com/stocks/{self.url.lower().split('.')[0]}"
         articles = []
-        urls: List[str] = []
         with temporary_web_page(
             news_url, headless=self.headless, callback=find_cookie_banner_stock_analysis
         ) as soup:
