@@ -164,16 +164,21 @@ def get_recommendation(state: LLMSubject) -> LLMSubject:
     )
     human_message = HumanMessage(
         f"""
-        From the news below about {state.to_name()}, extract:
-        1. **recommendation** — must be exactly one of: {list(get_args(ConsensusType))}
-        2. **explanation** — a brief reason for the recommendation.
+        You are a JSON generator. Output MUST be a single valid JSON object.
+        No prose, no markdown, no backticks, and nothing before or after the JSON.
 
-        Return the result **strictly** in the following JSON format (no extra text or explanation):
+        Task (about {state.to_name()}):
+        - Read the news and decide a stock recommendation.
+        - "recommendation" MUST be exactly one of: {list(get_args(ConsensusType))}
+        - "explanation" MUST be a brief 1-2 sentence reason based only on the news about {state.to_name()}.
 
-        {{
-          "recommendation": "<one of {list(get_args(ConsensusType))}>",
-          "explanation": "<brief reason>"
-        }}
+        Return the result STRICTLY in this schema (use exactly these keys and types):
+        {get_json_schema(NewsAnalysis)}
+
+        Example output (format only, not the answer):
+        {{"recommendation":"Buy","explanation":"Strong guidance and margin expansion cited by multiple analysts."}}
+
+        Return ONLY the JSON.
 
         News:
         {state.combined_summary_news()}
