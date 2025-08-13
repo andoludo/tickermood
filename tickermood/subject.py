@@ -72,7 +72,7 @@ class Subject(TickerSubject, PriceTarget, Consensus, NewsAnalysis):
                 "The length of news_summary must match the length of news."
             )
         if len(self.news) != len(set(self.news)):
-            raise ValueError("News items must be unique.")
+            self.news = list(set(self.news))
         return self
 
     def save(self, database_config: DatabaseConfig) -> None:
