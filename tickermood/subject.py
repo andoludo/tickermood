@@ -40,6 +40,9 @@ class TickerSubject(BaseModel):
             )
         return self.symbol_without_suffix.upper()
 
+    def to_name(self) -> str:
+        return f"{self.name} ({self.symbol})" if self.name else self.symbol
+
 
 class PriceTarget(BaseModel):
     high_price_target: Optional[float] = None
