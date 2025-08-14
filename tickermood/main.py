@@ -64,7 +64,15 @@ class TickerMoodNews(BaseModel):
                     continue
             subject.save(self.database_config)
             if llm:
-                self.summarize(subject, llm)
+                try:
+                    self.summarize(subject, llm)
+                except Exception as e:
+                    logger.error(
+                        f"""Failed to summarize subject {subject.symbol}: {e}.
+                                 - Subject: {subject.model_dump()}
+                                 - LLM: {llm.model_dump()}"""
+                    )
+                    continue
 
 
 class TickerMood(TickerMoodNews):
