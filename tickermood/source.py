@@ -106,7 +106,7 @@ class BaseSource(BaseModel):
     name: SourceName
     url: str
     headless: bool = False
-    news_limit: int = 10
+    news_limit: int = 5
 
     @classmethod
     def search_subject(cls, subject: Subject, headless: bool = False) -> Subject:
